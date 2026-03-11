@@ -1,0 +1,17 @@
+# docker-compose.yml
+# Startar appen och säkerställer att databasen sparas även efter omstart
+
+version: "3.8"
+
+services:
+  app:
+    build: .                          # Bygg från Dockerfile i samma mapp
+    container_name: gdpr-user-registry
+    environment:
+      - DB_PATH=/data/test_users.db   # Sökväg till databasen i containern
+    volumes:
+      - db_data:/data                 # Persistent volym – databasen försvinner inte vid omstart
+
+# Namngiven volym som Docker hanterar
+volumes:
+  db_data:

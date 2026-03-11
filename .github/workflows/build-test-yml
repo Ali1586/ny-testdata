@@ -1,0 +1,39 @@
+# .github/workflows/build-test.yml
+# CI/CD Pipeline – körs automatiskt vid varje push till GitHub
+
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]      # Kör vid push till main
+  pull_request:
+    branches: [ main ]      # Kör även vid pull requests
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Använd en Ubuntu-server hos GitHub
+
+    steps:
+      # Steg 1: Hämta koden från GitHub
+      - name: Hämta kod
+        uses: actions/checkout@v3
+
+      # Steg 2: Installera Python
+      - name: Installera Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      # Steg 3: Kör app.py och kontrollera att det fungerar
+      - name: Testa att app.py körs
+        run: |
+          mkdir -p /tmp/data
+          DB_PATH=/tmp/data/test_users.db python app.py
+
+      # Steg 4: Bygg Docker-imagen
+      - name: Bygg Docker-image
+        run: docker build -t gdpr-app .
+
+      # Steg 5: Kör containern och kontrollera att den startar
+      - name: Kör Docker-container
+        run: docker run --rm -e DB_PATH=/data/test_users.db gdpr-app

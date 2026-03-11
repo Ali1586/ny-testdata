@@ -1,0 +1,15 @@
+# .gitignore – filer som INTE ska laddas upp till GitHub
+
+# Databasfiler (ska inte versionshanteras)
+*.db
+*.db-journal
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Miljöfiler med känslig info
+.env
+
+# macOS systemfiler
+.DS_Store
