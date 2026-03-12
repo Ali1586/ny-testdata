@@ -5,6 +5,8 @@ Kurs: Testdata, testmiljöer och dataskyddsförordningen (GDPR)
 
 import sqlite3
 import os
+import random
+import string
 
 # Sökväg till databasen (sparas i /data när Docker körs)
 DB_PATH = os.getenv("DB_PATH", "/data/test_users.db")
@@ -24,7 +26,6 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Skapa tabell om den inte finns
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +34,6 @@ def init_db():
         )
     """)
 
-    # Lägg till testanvändare om tabellen är tom
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         test_users = [
@@ -47,29 +47,29 @@ def init_db():
     conn.close()
 
 
-def display_users():
-    """Visar alla användare i databasen."""
+def display_users(limit=10):
+    """Visar användare i databasen. limit = hur många som visas."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email FROM users")
+    cursor.execute("SELECT id, name, email FROM users LIMIT ?", (limit,))
     rows = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total = cursor.fetchone()[0]
     conn.close()
 
     if not rows:
         print("(Inga användare i databasen)")
     else:
-        print("\n--- Användare i databasen ---")
+        print(f"\n--- Visar {len(rows)} av totalt {total} användare ---")
         for row in rows:
             print(f"  ID: {row[0]} | Namn: {row[1]} | E-post: {row[2]}")
-        print("-----------------------------\n")
+        print("--------------------------------------------------\n")
 
 
 # ── GDPR-ÅTGÄRD 1: Radering (Art. 17 – Rätten att bli bortglömd) ──────────
 def clear_test_data():
-    """
-    Raderar ALL data ur tabellen users.
-    Motsvarar GDPR Art. 17 - 'Right to be Forgotten'.
-    """
+    """Raderar ALL data. GDPR Art. 17 - 'Right to be Forgotten'."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM users")
@@ -79,15 +79,12 @@ def clear_test_data():
 
 
 def delete_user(user_id: int):
-    """
-    Raderar EN specifik användare baserat på ID.
-    Hanterar en enskild 'Right to be Forgotten'-begäran.
-    """
+    """Raderar EN specifik användare. GDPR Art. 17."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
-    deleted = cursor.rowcount  # antal raderade rader
+    deleted = cursor.rowcount
     conn.close()
 
     if deleted:
@@ -98,10 +95,7 @@ def delete_user(user_id: int):
 
 # ── GDPR-ÅTGÄRD 2: Anonymisering (Art. 4(5)) ─────────────────────────────
 def anonymize_data():
-    """
-    Ersätter namn och e-post med anonym/icke-identifierbar data.
-    Motsvarar GDPR Art. 4(5) - Pseudonymisering/Anonymisering.
-    """
+    """Ersätter namn och e-post med anonym data. GDPR Art. 4(5)."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users")
@@ -118,6 +112,49 @@ def anonymize_data():
     print("🔒 Alla användare har anonymiserats (GDPR Art. 4(5)).")
 
 
+# ── GDPR-ÅTGÄRD 3: Generera fake-användare (Art. 5 – Dataminimering) ──────
+def generate_fake_users(count: int = 1000):
+    """
+    Genererar realistisk men helt PÅHITTAD testdata i stor skala.
+    Ingen riktig personinformation används.
+    GDPR Art. 5 – Dataminimering.
+
+    count = antal användare att generera (standard 1000, fungerar upp till 100 000+)
+    """
+    first_names = [
+        "Anna", "Bo", "Carl", "Diana", "Erik", "Fatima", "Gustav", "Hanna",
+        "Ivan", "Julia", "Karl", "Lisa", "Magnus", "Nina", "Oscar", "Petra",
+        "Reza", "Sara", "Thomas", "Ulrika", "Viktor", "Wendy", "Yasmin",
+        "Maria", "Johan", "Emma", "Lars", "Sofia", "Anders", "Zakaria"
+    ]
+    last_names = [
+        "Andersson", "Bergström", "Carlsson", "Davidsson", "Eriksson",
+        "Fransson", "Gustafsson", "Hansson", "Johansson", "Karlsson",
+        "Lindgren", "Magnusson", "Nilsson", "Olsson", "Persson",
+        "Svensson", "Thorsson", "Vikström", "Wallén", "Zetterberg"
+    ]
+
+    def random_string(length=6):
+        return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+    # Bygg hela listan först – mycket snabbare än att insertera en i taget
+    fake_users = []
+    for _ in range(count):
+        first = random.choice(first_names)
+        last  = random.choice(last_names)
+        email = f"{first.lower()}.{last.lower()}{random_string()}@faketest.se"
+        fake_users.append((f"{first} {last}", email))
+
+    # Spara alla på en gång med executemany
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.executemany("INSERT INTO users (name, email) VALUES (?, ?)", fake_users)
+    conn.commit()
+    conn.close()
+
+    print(f"🧪 {count:,} fake-användare genererade (GDPR Art. 5 – Dataminimering).")
+
+
 # ── Huvudprogram ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("=== GDPR Testdata System ===\n")
@@ -129,12 +166,19 @@ if __name__ == "__main__":
     print("📋 Original testdata:")
     display_users()
 
-    # 3. Demonstrera anonymisering
-    anonymize_data()
-    print("📋 Efter anonymisering:")
-    display_users()
+    # 3. Generera 100 000 fake-användare
+    print("⏳ Genererar 100 000 fake-användare...")
+    generate_fake_users(100_000)
 
-    # 4. Demonstrera radering
+    print("📋 Exempel på genererade användare (visar 10 st):")
+    display_users(limit=10)
+
+    # 4. Anonymisera
+    anonymize_data()
+    print("📋 Efter anonymisering (visar 10 st):")
+    display_users(limit=10)
+
+    # 5. Radera allt
     clear_test_data()
     print("📋 Efter radering:")
     display_users()

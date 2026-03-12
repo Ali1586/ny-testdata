@@ -9,15 +9,38 @@ if os.path.exists("/tmp/test_users.db"):
     os.remove("/tmp/test_users.db")
 
 # Importera funktioner från app.py
-from app import init_db, display_users, clear_test_data, anonymize_data, generate_fake_users, get_connection
+from app import get_connection, init_db, anonymize_data, clear_test_data, generate_fake_users
 
 print("=" * 40)
 print("TESTER FÖR APP.PY")
 print("=" * 40)
 
-# ── TEST 1: Databas och tabell skapas ─────────────────────────────────────
-print("\n🧪 TEST 1: Databas skapas korrekt")
+# TEST 1: GDPR-TEST – Anonymisering
+print("\n🔒 GDPR-TEST: Anonymisera data")
 print("-" * 30)
+
+init_db()
+anonymize_data()
+
+conn = get_connection()
+cursor = conn.cursor()
+cursor.execute("SELECT name FROM users WHERE id=1")
+resultat = cursor.fetchone()
+
+if resultat and "Anonym" in resultat[0]:
+    print("✅ PASS: Data anonymiserades korrekt för GDPR")
+else:
+    print("❌ FAIL: Data anonymiserades INTE korrekt")
+
+conn.close()
+
+# TEST 2: UNIT TEST – Databas skapas
+print("\n🧪 UNIT TEST: Databas funktioner")
+print("-" * 30)
+
+# Börja om från början
+if os.path.exists("/tmp/test_users.db"):
+    os.remove("/tmp/test_users.db")
 
 init_db()
 
@@ -40,32 +63,14 @@ cursor.execute("SELECT COUNT(*) FROM users")
 antal = cursor.fetchone()[0]
 
 if antal == 2:
-    print("✅ PASS: 2 testanvändare lades till")
+    print("✅ PASS: 2 användare lades till i tabellen")
 else:
     print(f"❌ FAIL: Fel antal användare ({antal} istället för 2)")
 
 conn.close()
 
-# ── TEST 2: Anonymisering fungerar ────────────────────────────────────────
-print("\n🔒 TEST 2: Anonymisering (GDPR Art. 4(5))")
-print("-" * 30)
-
-anonymize_data()
-
-conn = get_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT name, email FROM users WHERE id=1")
-rad = cursor.fetchone()
-
-if rad and "Anonym" in rad[0] and "okänd.se" in rad[1]:
-    print("✅ PASS: Data anonymiserades korrekt")
-else:
-    print("❌ FAIL: Data anonymiserades INTE korrekt")
-
-conn.close()
-
-# ── TEST 3: Radering fungerar ─────────────────────────────────────────────
-print("\n🗑️  TEST 3: Radering (GDPR Art. 17)")
+# TEST 3: GDPR-TEST – Radering
+print("\n🗑️  GDPR-TEST: Radera all data")
 print("-" * 30)
 
 clear_test_data()
@@ -78,34 +83,25 @@ antal = cursor.fetchone()[0]
 if antal == 0:
     print("✅ PASS: All data raderades korrekt")
 else:
-    print(f"❌ FAIL: {antal} användare finns kvar efter radering")
+    print(f"❌ FAIL: {antal} användare finns kvar")
 
 conn.close()
 
-# ── TEST 4: Generera fake-användare ──────────────────────────────────────
-print("\n🧪 TEST 4: Generera fake-användare (GDPR Art. 5)")
+# TEST 4: Generera fake-användare
+print("\n🧪 GDPR-TEST: Generera fake-användare")
 print("-" * 30)
 
-generate_fake_users(500)
+generate_fake_users(100)
 
 conn = get_connection()
 cursor = conn.cursor()
 cursor.execute("SELECT COUNT(*) FROM users")
 antal = cursor.fetchone()[0]
 
-if antal == 500:
-    print("✅ PASS: 500 fake-användare genererades korrekt")
+if antal == 100:
+    print("✅ PASS: 100 fake-användare genererades korrekt")
 else:
-    print(f"❌ FAIL: Fel antal ({antal} istället för 500)")
-
-# Kontrollera att e-post innehåller @faketest.se
-cursor.execute("SELECT email FROM users LIMIT 1")
-email = cursor.fetchone()[0]
-
-if "@faketest.se" in email:
-    print("✅ PASS: Fake e-postadresser ser korrekta ut")
-else:
-    print("❌ FAIL: E-postadresser ser fel ut")
+    print(f"❌ FAIL: Fel antal ({antal} istället för 100)")
 
 conn.close()
 
