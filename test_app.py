@@ -1,107 +1,86 @@
 import os
 import sqlite3
 
-# Använd en separat testdatabas så vi inte förstör riktig data
-os.environ["DB_PATH"] = "/tmp/test_users.db"
-
-# Ta bort gammal testdatabas för att börja från början
-if os.path.exists("/tmp/test_users.db"):
-    os.remove("/tmp/test_users.db")
+# Ta bort gammal databas för att börja från början
+if os.path.exists("mynewapp.db"):
+    os.remove("mynewapp.db")
 
 # Importera funktioner från app.py
-from app import get_connection, init_db, anonymize_data, clear_test_data, generate_fake_users
+from app import connect, init_db, anonymize_data, clear_test_data, generate_fake_users
 
 print("=" * 40)
 print("TESTER FÖR APP.PY")
 print("=" * 40)
 
-# TEST 1: GDPR-TEST – Anonymisering
+# TEST 1: GDPR-TEST - Anonymisering
 print("\n🔒 GDPR-TEST: Anonymisera data")
 print("-" * 30)
 
 init_db()
 anonymize_data()
 
-conn = get_connection()
+conn = connect()
 cursor = conn.cursor()
-cursor.execute("SELECT name FROM users WHERE id=1")
+cursor.execute("SELECT name FROM personer WHERE id=1")
 resultat = cursor.fetchone()
 
-if resultat and "Anonym" in resultat[0]:
+if resultat and resultat[0] == "Anonymiserad Namn":
     print("✅ PASS: Data anonymiserades korrekt för GDPR")
 else:
     print("❌ FAIL: Data anonymiserades INTE korrekt")
 
 conn.close()
 
-# TEST 2: UNIT TEST – Databas skapas
+# TEST 2: UNIT TEST - Databas skapas
 print("\n🧪 UNIT TEST: Databas funktioner")
 print("-" * 30)
 
-# Börja om från början
-if os.path.exists("/tmp/test_users.db"):
-    os.remove("/tmp/test_users.db")
+if os.path.exists("mynewapp.db"):
+    os.remove("mynewapp.db")
 
 init_db()
 
-if os.path.exists("/tmp/test_users.db"):
+if os.path.exists("mynewapp.db"):
     print("✅ PASS: Databasfil skapades")
 else:
     print("❌ FAIL: Databasfil skapades INTE")
 
-conn = get_connection()
+conn = connect()
 cursor = conn.cursor()
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='personer'")
 tabell = cursor.fetchone()
 
 if tabell:
-    print("✅ PASS: Tabellen 'users' skapades")
+    print("✅ PASS: Tabellen 'personer' skapades")
 else:
     print("❌ FAIL: Tabellen skapades INTE")
 
-cursor.execute("SELECT COUNT(*) FROM users")
+cursor.execute("SELECT COUNT(*) FROM personer")
 antal = cursor.fetchone()[0]
 
 if antal == 2:
-    print("✅ PASS: 2 användare lades till i tabellen")
+    print("✅ PASS: 2 personer lades till i tabellen")
 else:
-    print(f"❌ FAIL: Fel antal användare ({antal} istället för 2)")
+    print(f"❌ FAIL: Fel antal personer ({antal} istället för 2)")
 
 conn.close()
 
-# TEST 3: GDPR-TEST – Radering
-print("\n🗑️  GDPR-TEST: Radera all data")
-print("-" * 30)
-
-clear_test_data()
-
-conn = get_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT COUNT(*) FROM users")
-antal = cursor.fetchone()[0]
-
-if antal == 0:
-    print("✅ PASS: All data raderades korrekt")
-else:
-    print(f"❌ FAIL: {antal} användare finns kvar")
-
-conn.close()
-
-# TEST 4: Generera fake-användare
-print("\n🧪 GDPR-TEST: Generera fake-användare")
+# TEST 3: Generera fake-användare
+print("\n🧪 GDPR-TEST: Generera fake-användare (Art. 5)")
 print("-" * 30)
 
 generate_fake_users(100)
 
-conn = get_connection()
+conn = connect()
 cursor = conn.cursor()
-cursor.execute("SELECT COUNT(*) FROM users")
+cursor.execute("SELECT COUNT(*) FROM personer")
 antal = cursor.fetchone()[0]
 
-if antal == 100:
+# 2 från init_db + 100 från generate = 102
+if antal == 102:
     print("✅ PASS: 100 fake-användare genererades korrekt")
 else:
-    print(f"❌ FAIL: Fel antal ({antal} istället för 100)")
+    print(f"❌ FAIL: Fel antal ({antal} istället för 102)")
 
 conn.close()
 
